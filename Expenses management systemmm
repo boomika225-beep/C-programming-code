@@ -1,0 +1,205 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+typedef struct User {
+    char userme[50];
+    char pass[50];
+} User;
+typedef struct Expense {
+    char category[50];
+    float amount;
+    char date[15]; 
+    struct Expense *next;
+} Expense;
+void registerUser(User *users, int *userCount) {
+    if (*userCount >= 10) {
+        printf("Maximum number of users reached.\n");
+        return;
+    }
+    printf("Enter new username: ");
+    scanf("%s", users[*userCount].userme);
+    printf("Enter new password: ");
+    scanf("%s", users[*userCount].pass);
+    (*userCount)++;
+    printf("Registration successful.\n");
+}
+
+int loginUser(User *users, int userCount) {
+    char userme[50];
+    char pass[50];
+    printf("Enter username: ");
+    scanf("%s", userme);
+    printf("Enter password: ");
+    scanf("%s", pass);
+    for (int i = 0; i < userCount; i++) {
+        if (strcmp(users[i].userme, userme) == 0 && strcmp(users[i].pass, pass) == 0) {
+            printf("Login successful.\n");
+            return 1;
+        }
+    }
+    printf("Invalid username or password.\n");
+    return 0;
+}
+Expense *addExpense(Expense *head, const char *category, float amount, const char *date) {
+    Expense *newExpense = (Expense *)malloc(sizeof(Expense));
+    if (newExpense == NULL) {
+        perror("Failed to allocate memory for new expense");
+        exit(EXIT_FAILURE);
+    }
+    strcpy(newExpense->category, category);
+    newExpense->amount = amount;
+    strcpy(newExpense->date, date);
+    newExpense->next = head;
+    return newExpense;
+}
+
+void displayExpenses(Expense *head) {
+    if (head == NULL) {
+        printf("No expenses recorded.\n");
+        return;
+    }
+    printf("--------\n");
+    printf("Category\tAmount\t\tDate\n");
+    printf("--------\n");
+    Expense *current = head;
+    while (current != NULL) {
+        printf("%s\t\t%.2f\t\t%s\n", current->category, current->amount, current->date);
+        current = current->next;
+    }
+    printf("--------------------------------------------------\n");
+}
+
+
+float calculateTotalExpenses(Expense *head) {
+    float total = 0;
+    Expense *current = head;
+    while (current != NULL) {
+        total += current->amount;
+        current = current->next;
+    }
+    return total;
+}
+
+
+void freeExpenses(Expense *head) {
+    Expense *current = head;
+    while (current != NULL) {
+        Expense *temp = current;
+        current = current->next;
+        free(temp);
+    }
+}
+void saveExpensesToFile(Expense *head, const char *filename) {
+    FILE *file = fopen(filename, "w");
+    if (file == NULL) {
+        perror("Error opening file for writing");
+        return;
+    }
+    Expense *current = head;
+    while (current != NULL) {
+        fprintf(file, "%s,%f,%s\n", current->category, current->amount, current->date);
+        current = current->next;
+    }
+    fclose(file);
+    printf("Expenses saved to file '%s'.\n", filename);
+}
+
+Expense *loadExpensesFromFile(const char *filename) {
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        perror("Error opening file for reading");
+        return NULL;
+    }
+    Expense *head = NULL;
+    char line[100];
+    while (fgets(line, sizeof(line), file) != NULL) {
+        char category[50];
+        float amount;
+        char date[15];
+        if (sscanf(line, "%[^,],%f,%[^,\n]", category, &amount, date) == 3) {
+            head = addExpense(head, category, amount, date);
+        }
+    }
+    fclose(file);
+    printf("Expenses loaded from file '%s'.\n", filename);
+    return head;
+}
+int main() {
+    User users[10];
+    int userCount = 0;
+    Expense *expenses = NULL;
+    int choice;
+    char category[50], date[15];
+    float amount;
+    const char *filename = "expenses.txt";
+
+    printf("Welcome to the Expense Tracker.\n");
+
+    while (1) {
+        printf("1. Register\n");
+        printf("2. Login\n");
+        printf("3. Exit\n");
+        printf("Enter your choice: ");
+        scanf("%d", &choice);
+
+        if (choice == 1) {
+            registerUser(users, &userCount);
+        } else if (choice == 2) {
+            if (loginUser(users, userCount)) {
+                while (1) {
+                    printf("\n--- Expense Menu ---\n");
+                    printf("1. Add Expense\n");
+                    printf("2. Display Expenses\n");
+                    printf("3. Calculate Total Expenses\n");
+                    printf("4. Save Expenses to File\n");
+                    printf("5. Load Expenses from File\n");
+                    printf("6. Logout\n");
+                    printf("Enter your choice: ");
+                    scanf("%d", &choice);
+
+                    switch (choice) {
+                        case 1:
+                            printf("Enter category: ");
+                            scanf("%s", category);
+                            printf("Enter amount: ");
+                            scanf("%f", &amount);
+                            printf("Enter date (YYYY-MM-DD): ");
+                            scanf("%s", date);
+                            expenses = addExpense(expenses, category, amount, date);
+                            break;
+                        case 2:
+                            displayExpenses(expenses);
+                            break;
+                        case 3:
+                            printf("Total expenses: %.2f\n", calculateTotalExpenses(expenses));
+                            break;
+                        case 4:
+                            saveExpensesToFile(expenses, filename);
+                            break;
+                        case 5:
+                            expenses = loadExpensesFromFile(filename);
+                            break;
+                        case 6:
+                            freeExpenses(expenses);
+                            expenses = NULL;
+                            printf("Logged out successfully.\n");
+                            break;
+                        default:
+                            printf("Invalid choice. Please try again.\n");
+                    }
+
+                    if (choice == 6) {
+                        break;
+                    }
+                }
+            }
+        } else if (choice == 3) {
+            printf("Thank you for using the Expense Tracker. Goodbye!\n");
+            break;
+        } else {
+            printf("Invalid choice. Please try again.\n");
+        }
+    }
+
+    return 0;
+}
